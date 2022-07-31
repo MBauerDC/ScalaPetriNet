@@ -1,4 +1,6 @@
- type PetriNetName = String
+import scala.util.Sorting
+
+type PetriNetName = String
 type PetriNetIdentifier = String
 
 trait Marker[N <: PetriNetName]:
@@ -16,10 +18,9 @@ trait Transition[N <: PetriNetName]:
   type PetriNetName = N
   val placesWeightsBefore: Set[(Place[N], Integer)]
   val placesWeightsAfter: Set[(Place[N], Integer)]
-  val priority: Integer
+  val priority: Int
   def tryTransition(places: Map[PetriNetIdentifier, Place[N]]): Map[PetriNetIdentifier, Place[N]] 
 
-given TransitionOrdering[N <: PetriNetName]: Ordering[Transition[N]] = Ordering.by(_.priority)
 
 trait PetriNet[N <: PetriNetName]:
   val places: Map[PetriNetIdentifier, Place[N]]
@@ -36,7 +37,7 @@ trait PetriNet[N <: PetriNetName]:
       val transitions = transitions
     }
   def performTransitions()(using o:Ordering[Transition[N]]) = 
-    val sortedTransitions = transitions.sorted
+    val sortedTransitions = transitions.toSeq.sortWith(_.priority <= _.priority)
     var currPlaces = places
     for (transition <- sortedTransitions) {
       currPlaces = transition.tryTransition(currPlaces)

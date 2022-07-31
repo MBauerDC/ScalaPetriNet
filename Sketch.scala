@@ -1,4 +1,4 @@
-type PetriNetName = String
+ type PetriNetName = String
 type PetriNetIdentifier = String
 
 trait Marker[N <: PetriNetName]:
@@ -8,34 +8,34 @@ trait Marker[N <: PetriNetName]:
 trait Place[N <: PetriNetName]:
   type PetriNetName = N
   val identifier: String
-  val markers: Map[PetriNetIdentifier, Marker]
+  val markers: Map[PetriNetIdentifier, Marker[N]]
   val markerCount: Integer
-  def withMarkers(newMarkerMap: Map[PetriNetIdentifier, Marker]: Place
+  def withMarkers(newMarkerMap: Map[PetriNetIdentifier, Marker[N]]): Place[N]
 
 trait Transition[N <: PetriNetName]:
   type PetriNetName = N
-  val placesWeightsBefore: Set[(Place, Integer)]
-  val placesWeightsAfter: Set[(Place, Integer)]
+  val placesWeightsBefore: Set[(Place[N], Integer)]
+  val placesWeightsAfter: Set[(Place[N], Integer)]
   val priority: Integer
-  def tryTransition(places: Map[PetriNetIdentifier, Place]): Map[PetriNetIdentifier, Place] 
+  def tryTransition(places: Map[PetriNetIdentifier, Place[N]]): Map[PetriNetIdentifier, Place[N]] 
 
-given TransitionOrdering: Ordering[Transition] = Ordering.by(_.priority)
+given TransitionOrdering[N <: PetriNetName]: Ordering[Transition[N]] = Ordering.by(_.priority)
 
 trait PetriNet[N <: PetriNetName]:
   val places: Map[PetriNetIdentifier, Place[N]]
   val transitions: Set[Transition[N]]
-  def withMarkerState(markers: Map[PetriNetIdentifier, Map[PetriNetIdentifier, Marker]]): PetriNet =
+  def withMarkerState(markers: Map[PetriNetIdentifier, Map[PetriNetIdentifier, Marker[N]]]): PetriNet[N] =
     val newPlaces = places.map(
-      place => 
+      (id, place) => 
         if (markers.contains(place.identifier)) 
-          then place.withMarkers(markers(place.identifier))
-          else place
+          then (id, place.withMarkers(markers(place.identifier)))
+          else (id, place)
     )
     new PetriNet[N]{
       val places = newPlaces
       val transitions = transitions
     }
-  def performTransitions() = 
+  def performTransitions()(using o:Ordering[Transition[N]]) = 
     val sortedTransitions = transitions.sorted
     var currPlaces = places
     for (transition <- sortedTransitions) {
@@ -48,9 +48,10 @@ trait PetriNet[N <: PetriNetName]:
     
 class GenericPetriNet[N <: PetriNetName](
   val places: Map[PetriNetIdentifier, Place[N]],
-  val transitions: Set[Transitions[N]]
+  val transitions: Set[Transition[N]]
 ) extends PetriNet[N]
 
 object GenericPetriNet:
   def apply[N <: PetriNetName](places: Map[PetriNetIdentifier, Place[N]], transitions: Set[Transition[N]]) = 
     new GenericPetriNet[N](places, transitions)
+
